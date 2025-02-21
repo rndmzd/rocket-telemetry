@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Rocket Telemetry</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/static/leaflet/leaflet.css" />
+    <script src="/static/leaflet/leaflet.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+      }
+      #container {
+        display: flex;
+        height: 100vh;
+      }
+      #map {
+        flex: 2;
+        height: 100%;
+      }
+      #data-panel {
+        flex: 1;
+        padding: 20px;
+        background-color: #f5f5f5;
+        overflow-y: auto;
+      }
+      .data-box {
+        background: white;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      .data-box h3 {
+        margin-top: 0;
+        color: #333;
+      }
+      .data-value {
+        font-family: monospace;
+        margin: 5px 0;
+      }
+      @media (max-width: 768px) {
+        #container {
+          flex-direction: column;
+        }
+        #map {
+          height: 60vh;
+        }
+        #data-panel {
+          height: 40vh;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <div id="map"></div>
+      <div id="data-panel">
+        <div class="data-box">
+          <h3>GPS Data</h3>
+          <div class="data-value">Latitude: <span id="lat">--</span>°</div>
+          <div class="data-value">Longitude: <span id="lng">--</span>°</div>
+          <div class="data-value">Altitude: <span id="alt">--</span> m</div>
+        </div>
+        <div class="data-box">
+          <h3>Accelerometer (m/s²)</h3>
+          <div class="data-value">X: <span id="acc-x">--</span></div>
+          <div class="data-value">Y: <span id="acc-y">--</span></div>
+          <div class="data-value">Z: <span id="acc-z">--</span></div>
+        </div>
+        <div class="data-box">
+          <h3>Gyroscope (rad/s)</h3>
+          <div class="data-value">X: <span id="gyro-x">--</span></div>
+          <div class="data-value">Y: <span id="gyro-y">--</span></div>
+          <div class="data-value">Z: <span id="gyro-z">--</span></div>
+        </div>
+        <div class="data-box">
+          <h3>Environment</h3>
+          <div class="data-value">
+            Pressure: <span id="pressure">--</span> hPa
+          </div>
+          <div class="data-value">
+            Temperature: <span id="temp">--</span> °C
+          </div>
+        </div>
+        <div class="data-box">
+          <h3>Status</h3>
+          <div class="data-value">
+            Last Update: <span id="last-update">--</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Initialize map
+      const map = L.map("map").setView([0, 0], 2);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+      }).addTo(map);
+
+      let marker = null;
+      let path = L.polyline([], { color: "red" }).addTo(map);
+      let positions = [];
+
+      // Update data function
+      function updateData() {
+        fetch("/data")
+          .then((response) => response.json())
+          .then((data) => {
+            // Update GPS data
+            document.getElementById("lat").textContent =
+              data.gps.lat.toFixed(6);
+            document.getElementById("lng").textContent =
+              data.gps.lng.toFixed(6);
+            document.getElementById("alt").textContent =
+              data.gps.alt.toFixed(1);
+
+            // Update IMU data
+            document.getElementById("acc-x").textContent =
+              data.imu.acc.x.toFixed(2);
+            document.getElementById("acc-y").textContent =
+              data.imu.acc.y.toFixed(2);
+            document.getElementById("acc-z").textContent =
+              data.imu.acc.z.toFixed(2);
+
+            document.getElementById("gyro-x").textContent =
+              data.imu.gyro.x.toFixed(2);
+            document.getElementById("gyro-y").textContent =
+              data.imu.gyro.y.toFixed(2);
+            document.getElementById("gyro-z").textContent =
+              data.imu.gyro.z.toFixed(2);
+
+            // Update environmental data
+            document.getElementById("pressure").textContent =
+              data.imu.pressure.toFixed(1);
+            document.getElementById("temp").textContent =
+              data.imu.temp.toFixed(1);
+
+            // Update timestamp
+            const date = new Date(data.timestamp * 1000);
+            document.getElementById("last-update").textContent =
+              date.toLocaleTimeString();
+
+            // Update map if we have valid coordinates
+            if (data.gps.lat !== 0 || data.gps.lng !== 0) {
+              const pos = [data.gps.lat, data.gps.lng];
+              positions.push(pos);
+
+              // Update marker
+              if (!marker) {
+                marker = L.marker(pos).addTo(map);
+              } else {
+                marker.setLatLng(pos);
+              }
+
+              // Update path
+              path.setLatLngs(positions);
+
+              // Center map on marker
+              map.setView(pos);
+            }
+          })
+          .catch((error) => console.error("Error fetching data:", error));
+      }
+
+      // Update every second
+      setInterval(updateData, 1000);
+      updateData(); // Initial update
+    </script>
+  </body>
+</html>
