@@ -1,0 +1,15 @@
+[Unit]
+Description=Rocket Telemetry Receiver Service
+After=network.target hostapd.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/pi/rocket-telemetry/receiver
+Environment=PYTHONPATH=/home/pi/rocket-telemetry/receiver/venv/lib/python3.9/site-packages
+ExecStart=/home/pi/rocket-telemetry/receiver/venv/bin/python3 /home/pi/rocket-telemetry/receiver/receiver.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target 
