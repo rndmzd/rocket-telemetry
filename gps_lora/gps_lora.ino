@@ -23,13 +23,14 @@ bool debug = false;
 #define RF95_TX_POWER 2
 
 // ----------------- LoRa Module Pins -----------------
-#define RFM95_CS 10 // LoRa Chip Select
-#define RFM95_RST 9 // LoRa Reset
-#define RFM95_INT 2 // LoRa Interrupt (G0)
+#define RFM95_CS 10 // LoRa Chip Select for M0
+#define RFM95_RST 9 // LoRa Reset for M0
+#define RFM95_INT 3 // Connect to G0 on LoRa module
 RH_RF95 rf95(RFM95_CS, RFM95_INT);
 
 // ----------------- GPS Setup -----------------
-#define SerialGPS Serial1 // Use Serial1 (pins 0 & 1)
+// Using hardware Serial1 (pins 0 & 1) on M0 for GPS
+#define GPSSerial Serial1
 TinyGPSPlus gps;
 
 // LoRa transmission interval
@@ -43,10 +44,10 @@ Adafruit_L3GD20_Unified gyro = Adafruit_L3GD20_Unified(20);
 Adafruit_BMP085_Unified bmp = Adafruit_BMP085_Unified(18001);
 
 // Add these definitions
-#define SD_CS BUILTIN_SDCARD // Teensy 4.1 built-in SD card
-#define BUFFER_SIZE 512      // Optimal buffer size for SD writing
-char buffer[BUFFER_SIZE];    // Buffer for SD writing
-File dataFile;               // File object
+#define SD_CS 4           // SD Card CS pin for M0 Adalogger
+#define BUFFER_SIZE 512   // Optimal buffer size for SD writing
+char buffer[BUFFER_SIZE]; // Buffer for SD writing
+File dataFile;            // File object
 
 // Add at top with other globals
 enum TransmitState
@@ -62,11 +63,11 @@ char imu_packet[128];
 void setup()
 {
   Serial.begin(115200);
-  while (!Serial)
-    ;
+  // Remove while(!Serial) to allow standalone operation
+  delay(5000); // Give some time for serial monitor connection if needed
 
   // -------- Initialize GPS --------
-  SerialGPS.begin(115200);
+  GPSSerial.begin(9600); // Ultimate GPS runs at 9600 baud
 
   // -------- Reset and Initialize LoRa --------
   pinMode(RFM95_RST, OUTPUT);
@@ -192,9 +193,9 @@ void loop()
   uint32_t now = millis();
 
   // Always read GPS and sensor data
-  while (SerialGPS.available())
+  while (GPSSerial.available())
   {
-    gps.encode(SerialGPS.read());
+    gps.encode(GPSSerial.read());
   }
 
   // Get sensor readings and log to SD (runs at full speed)
