@@ -80,21 +80,6 @@
           <div class="data-value">Altitude: <span id="alt">--</span> m</div>
         </div>
         <div class="data-box">
-          <h3>Receiver Position</h3>
-          <div class="data-value">
-            Latitude: <span id="receiver-lat">--</span>°
-          </div>
-          <div class="data-value">
-            Longitude: <span id="receiver-lng">--</span>°
-          </div>
-          <div class="data-value">
-            Altitude: <span id="receiver-alt">--</span> m
-          </div>
-          <div class="data-value">
-            Distance: <span id="distance">--</span> m
-          </div>
-        </div>
-        <div class="data-box">
           <h3>Accelerometer (m/s²)</h3>
           <div class="data-value">X: <span id="acc-x">--</span></div>
           <div class="data-value">Y: <span id="acc-y">--</span></div>
@@ -132,13 +117,8 @@
       }).addTo(map);
 
       let rocketMarker = null;
-      let receiverMarker = null;
       let path = L.polyline([], { color: "red" }).addTo(map);
       let positions = [];
-      let distanceLine = L.polyline([], {
-        color: "blue",
-        dashArray: "10, 10",
-      }).addTo(map);
 
       // Update data function
       function updateData() {
@@ -152,16 +132,6 @@
               data.gps.lng.toFixed(6);
             document.getElementById("alt").textContent =
               data.gps.alt.toFixed(1);
-
-            // Update receiver GPS data
-            document.getElementById("receiver-lat").textContent =
-              data.receiver_gps.lat.toFixed(6);
-            document.getElementById("receiver-lng").textContent =
-              data.receiver_gps.lng.toFixed(6);
-            document.getElementById("receiver-alt").textContent =
-              data.receiver_gps.alt.toFixed(1);
-            document.getElementById("distance").textContent =
-              data.distance.toFixed(1);
 
             // Update IMU data
             document.getElementById("acc-x").textContent =
@@ -191,7 +161,6 @@
 
             // Update map markers and path
             const rocketPos = [data.gps.lat, data.gps.lng];
-            const receiverPos = [data.receiver_gps.lat, data.receiver_gps.lng];
 
             // Update rocket position
             if (data.gps.lat !== 0 || data.gps.lng !== 0) {
@@ -208,39 +177,9 @@
               }
               positions.push(rocketPos);
               path.setLatLngs(positions);
-            }
 
-            // Update receiver position
-            if (data.receiver_gps.lat !== 0 || data.receiver_gps.lng !== 0) {
-              if (!receiverMarker) {
-                receiverMarker = L.marker(receiverPos, {
-                  icon: L.divIcon({
-                    className: "receiver-icon",
-                    html: "📡",
-                    iconSize: [20, 20],
-                  }),
-                }).addTo(map);
-              } else {
-                receiverMarker.setLatLng(receiverPos);
-              }
-            }
-
-            // Update distance line
-            if (
-              (data.gps.lat !== 0 || data.gps.lng !== 0) &&
-              (data.receiver_gps.lat !== 0 || data.receiver_gps.lng !== 0)
-            ) {
-              distanceLine.setLatLngs([rocketPos, receiverPos]);
-            }
-
-            // Center map to show both markers
-            if (rocketMarker && receiverMarker) {
-              const bounds = L.latLngBounds([rocketPos, receiverPos]);
-              map.fitBounds(bounds, { padding: [50, 50] });
-            } else if (rocketMarker) {
+              // Center map on rocket
               map.setView(rocketPos);
-            } else if (receiverMarker) {
-              map.setView(receiverPos);
             }
           })
           .catch((error) => console.error("Error fetching data:", error));
