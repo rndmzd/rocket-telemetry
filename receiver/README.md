@@ -27,25 +27,40 @@ RST        | GPIO25
 ## Software Setup
 
 1. Install system dependencies:
+
    ```bash
    sudo apt-get update
-   sudo apt-get install -y python3-pip python3-venv
+   sudo apt-get install -y python3-pip python3-venv git
    ```
 
 2. Enable SPI interface:
+
    ```bash
    sudo raspi-config
    # Navigate to Interface Options > SPI > Enable
    ```
 
 3. Set up Python virtual environment:
+
    ```bash
-   python3 -m venv venv
-   source venv/bin/activate
+   # Clone the repository if you haven't already
+   git clone https://github.com/yourusername/rocket-telemetry.git
+   cd rocket-telemetry/receiver
+
+   # Create and activate virtual environment
+   python3 -m venv env
+   source env/bin/activate
+
+   # Install required packages
+   pip install wheel
    pip install -r requirements.txt
+
+   # Deactivate virtual environment when done
+   deactivate
    ```
 
 4. Configure WiFi hotspot:
+
    ```bash
    sudo apt-get install -y hostapd dnsmasq
    sudo systemctl unmask hostapd
@@ -53,6 +68,7 @@ RST        | GPIO25
    ```
 
 5. Edit `/etc/dhcpcd.conf`:
+
    ```
    interface wlan0
    static ip_address=192.168.4.1/24
@@ -60,6 +76,7 @@ RST        | GPIO25
    ```
 
 6. Edit `/etc/hostapd/hostapd.conf`:
+
    ```
    interface=wlan0
    driver=nl80211
@@ -78,16 +95,24 @@ RST        | GPIO25
    ```
 
 7. Edit `/etc/dnsmasq.conf`:
+
    ```
    interface=wlan0
    dhcp-range=192.168.4.2,192.168.4.20,255.255.255.0,24h
    ```
 
 8. Set up autostart service:
+
    ```bash
    # Copy files to home directory
    sudo mkdir -p /home/pi/rocket-telemetry
    sudo cp -r . /home/pi/rocket-telemetry/
+   
+   # Create virtual environment in the new location
+   cd /home/pi/rocket-telemetry/receiver
+   sudo python3 -m venv env
+   sudo env/bin/pip install wheel
+   sudo env/bin/pip install -r requirements.txt
    
    # Install the service
    sudo cp rocket-telemetry.service /etc/systemd/system/
@@ -97,6 +122,7 @@ RST        | GPIO25
    ```
 
 9. Reboot the Raspberry Pi:
+
    ```bash
    sudo reboot
    ```
@@ -104,17 +130,20 @@ RST        | GPIO25
 ## Running the Application
 
 The application will start automatically when the Raspberry Pi boots up. You can check its status with:
+
 ```bash
 sudo systemctl status rocket-telemetry
 ```
 
 To manually start/stop the service:
+
 ```bash
 sudo systemctl start rocket-telemetry
 sudo systemctl stop rocket-telemetry
 ```
 
 To view the logs:
+
 ```bash
 sudo journalctl -u rocket-telemetry -f
 ```
@@ -153,4 +182,6 @@ sudo journalctl -u rocket-telemetry -f
    - Check service status: `sudo systemctl status rocket-telemetry`
    - Check logs: `sudo journalctl -u rocket-telemetry -f`
    - Verify file permissions: `ls -l /home/pi/rocket-telemetry`
-   - Check Python environment: `ls -l /home/pi/rocket-telemetry/receiver/venv` 
+   - Check Python environment: `ls -l /home/pi/rocket-telemetry/receiver/env`
+   - Verify Python packages: `sudo /home/pi/rocket-telemetry/receiver/env/bin/pip list`
+   - Check if all required packages are installed: `sudo /home/pi/rocket-telemetry/receiver/env/bin/pip check`

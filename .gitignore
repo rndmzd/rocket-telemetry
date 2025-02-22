@@ -1,2 +1,3 @@
 receiver/static/leaflet/*
 !receiver/static/leaflet/README.md
+env/

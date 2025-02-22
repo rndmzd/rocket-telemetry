@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Rocket Telemetry Settings</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 0 20px;
+      }
+      .settings-form {
+        background: #f5f5f5;
+        padding: 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      .settings-section {
+        margin-bottom: 30px;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      input[type="number"], select {
+        width: 200px;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      small {
+        display: block;
+        color: #666;
+        margin-top: 4px;
+      }
+      button {
+        background: #4caf50;
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #45a049;
+      }
+      .status {
+        margin-top: 20px;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .success {
+        background: #dff0d8;
+        color: #3c763d;
+        border: 1px solid #d6e9c6;
+      }
+      .error {
+        background: #f2dede;
+        color: #a94442;
+        border: 1px solid #ebccd1;
+      }
+      .nav {
+        margin-bottom: 20px;
+      }
+      .nav a {
+        color: #666;
+        text-decoration: none;
+      }
+      .nav a:hover {
+        text-decoration: underline;
+      }
+      h2 {
+        color: #333;
+        font-size: 1.2em;
+        margin-bottom: 15px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="nav">
+      <a href="/">← Back to Dashboard</a>
+    </div>
+    <h1>Telemetry Settings</h1>
+
+    {% if status %}
+    <div class="status {% if error %}error{% else %}success{% endif %}">
+      {{ status }}
+    </div>
+    {% endif %}
+
+    <div class="settings-form">
+      <form method="POST" action="/settings">
+        <div class="settings-section">
+          <h2>LoRa Radio Settings</h2>
+          <div class="form-group">
+            <label for="frequency">Frequency (MHz):</label>
+            <input
+              type="number"
+              id="frequency"
+              name="frequency"
+              value="{{ current_frequency }}"
+              step="0.1"
+              min="400"
+              max="500"
+              required
+            />
+            <small>Valid range: 400-500 MHz</small>
+          </div>
+          <div class="form-group">
+            <label for="tx_power">TX Power (dB):</label>
+            <input
+              type="number"
+              id="tx_power"
+              name="tx_power"
+              value="{{ current_tx_power }}"
+              step="1"
+              min="2"
+              max="20"
+              required
+            />
+            <small>Valid range: 2-20 dB (higher values increase range but consume more power)</small>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <h2>GPS Settings</h2>
+          <div class="form-group">
+            <label for="gps_baudrate">GPS Baudrate:</label>
+            <select id="gps_baudrate" name="gps_baudrate" required>
+              <option value="4800" {% if current_gps_baudrate == 4800 %}selected{% endif %}>4800</option>
+              <option value="9600" {% if current_gps_baudrate == 9600 %}selected{% endif %}>9600</option>
+              <option value="19200" {% if current_gps_baudrate == 19200 %}selected{% endif %}>19200</option>
+              <option value="38400" {% if current_gps_baudrate == 38400 %}selected{% endif %}>38400</option>
+              <option value="57600" {% if current_gps_baudrate == 57600 %}selected{% endif %}>57600</option>
+              <option value="115200" {% if current_gps_baudrate == 115200 %}selected{% endif %}>115200</option>
+            </select>
+            <small>Select the baudrate matching your GPS module's configuration</small>
+          </div>
+        </div>
+
+        <button type="submit">Save Settings</button>
+      </form>
+    </div>
+
+    <script>
+      // Clear status message after 5 seconds
+      setTimeout(function () {
+        const status = document.querySelector(".status");
+        if (status) {
+          status.style.display = "none";
+        }
+      }, 5000);
+    </script>
+  </body>
+</html>
