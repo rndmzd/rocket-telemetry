@@ -21,7 +21,7 @@ SETTINGS_FILE = 'settings.json'
 # Default settings
 DEFAULT_SETTINGS = {
     'frequency': 433.0,
-    'tx_power': 2,
+    'tx_power': 5,
     'gps_baudrate': 9600
 }
 
@@ -209,8 +209,8 @@ def parse_imu_packet(packet):
 
 def lora_receiver():
     """Background thread to receive LoRa packets"""
-    global rfm9x, stop_thread
-    while not stop_thread:
+    global rfm9x
+    while True:
         if rfm9x is None:
             time.sleep(1)
             continue
@@ -250,7 +250,7 @@ def settings():
         try:
             # Extract settings from form
             frequency = float(request.form.get('lora_frequency', 433.0))
-            tx_power = int(request.form.get('lora_power', 23))
+            tx_power = int(request.form.get('lora_power', 20))
             gps_baudrate = int(request.form.get('gps_baudrate', 9600))
             
             # Update settings
