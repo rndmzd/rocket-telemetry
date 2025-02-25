@@ -30,6 +30,7 @@ gps = None
 rfm9x = None
 data_lock = Lock()
 settings_lock = Lock()
+lora_lock = Lock()
 
 # Global variables to store latest data
 latest_data = {
@@ -134,19 +135,35 @@ def initialize_lora(frequency, tx_power):
     """Initialize or reinitialize LoRa radio with given settings"""
     global rfm9x
     
-    # Configure RFM95 / LoRa radio
-    CS = digitalio.DigitalInOut(board.CE1)
-    RESET = digitalio.DigitalInOut(board.D25)
-    spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
+    # Set up thread safety
+    with lora_lock:
+        # Configure RFM95 / LoRa radio
+        CS = digitalio.DigitalInOut(board.CE1)
+        RESET = digitalio.DigitalInOut(board.D25)
+        
+        # Explicitly set the pins as outputs
+        CS.direction = digitalio.Direction.OUTPUT
+        RESET.direction = digitalio.Direction.OUTPUT
+        
+        spi = busio.SPI(board.SCK, MOSI=board.MOSI, MISO=board.MISO)
 
-    # Initialize RFM radio
-    if rfm9x is not None:
         # Clean up old instance if it exists
-        rfm9x.deinit()
-    
-    rfm9x = adafruit_rfm9x.RFM9x(spi, CS, RESET, frequency)
-    rfm9x.tx_power = tx_power
-    return rfm9x
+        if rfm9x is not None:
+            # Clean up old instance if it exists
+            try:
+                rfm9x.deinit()
+            except Exception as e:
+                print(f"Error deinitializing RFM9x: {e}")
+                
+        # Initialize RFM radio with a small delay to ensure stability
+        time.sleep(0.1)  
+        rfm9x = adafruit_rfm9x.RFM9x(spi, CS, RESET, frequency)
+        rfm9x.tx_power = tx_power
+        
+        # Give the module time to stabilize
+        time.sleep(0.1)
+        
+        return rfm9x
 
 def parse_gps_packet(packet):
     """Parse GPS data from packet string"""
@@ -192,29 +209,34 @@ def parse_imu_packet(packet):
 
 def lora_receiver():
     """Background thread to receive LoRa packets"""
-    while True:
+    global rfm9x, stop_thread
+    while not stop_thread:
         if rfm9x is None:
             time.sleep(1)
             continue
-            
-        packet = rfm9x.receive(timeout=1.0)
-        if packet:
-            try:
-                # Try to parse as GPS data first
-                gps_data = parse_gps_packet(packet)
-                if gps_data:
-                    with data_lock:
-                        latest_data['gps'].update(gps_data)
-                        latest_data['timestamp'] = time.time()
-                else:
-                    # Try to parse as IMU data
-                    imu_data = parse_imu_packet(packet)
-                    if imu_data:
+        
+        try:
+            packet = rfm9x.receive(timeout=1.0)
+            if packet:
+                try:
+                    # Try to parse as GPS data first
+                    gps_data = parse_gps_packet(packet)
+                    if gps_data:
                         with data_lock:
-                            latest_data['imu'].update(imu_data)
+                            latest_data['gps'].update(gps_data)
                             latest_data['timestamp'] = time.time()
-            except Exception as e:
-                print(f"Error parsing packet: {e}")
+                    else:
+                        # Try to parse as IMU data
+                        imu_data = parse_imu_packet(packet)
+                        if imu_data:
+                            with data_lock:
+                                latest_data['imu'].update(imu_data)
+                                latest_data['timestamp'] = time.time()
+                except Exception as e:
+                    print(f"Error parsing packet: {e}")
+        except Exception as e:
+            print(f"Error in LoRa receiver: {e}")
+            time.sleep(1)
 
 @app.route('/')
 def index():
@@ -226,34 +248,29 @@ def settings():
     """Handle settings page"""
     if request.method == 'POST':
         try:
-            new_frequency = float(request.form['frequency'])
-            new_tx_power = int(request.form['tx_power'])
-            new_gps_baudrate = int(request.form['gps_baudrate'])
+            # Extract settings from form
+            frequency = float(request.form.get('lora_frequency', 433.0))
+            tx_power = int(request.form.get('lora_power', 23))
+            gps_baudrate = int(request.form.get('gps_baudrate', 9600))
             
-            if not (400 <= new_frequency <= 500):
-                raise ValueError("Frequency must be between 400 and 500 MHz")
-            if not (2 <= new_tx_power <= 20):
-                raise ValueError("TX Power must be between 2 and 20 dB")
-            if new_gps_baudrate not in [4800, 9600, 19200, 38400, 57600, 115200]:
-                raise ValueError("Invalid GPS baudrate")
+            # Update settings
+            new_settings = {
+                'frequency': frequency,
+                'tx_power': tx_power,
+                'gps_baudrate': gps_baudrate
+            }
+            save_settings(new_settings)
             
-            with settings_lock:
-                settings = load_settings()
-                settings['frequency'] = new_frequency
-                settings['tx_power'] = new_tx_power
-                settings['gps_baudrate'] = new_gps_baudrate
-                save_settings(settings)
-                
-                # Reinitialize hardware
-                initialize_lora(new_frequency, new_tx_power)
-                global gps
-                gps = initialize_gps(new_gps_baudrate)
+            # Update LoRa settings
+            initialize_lora(frequency, tx_power)
             
+            # Load updated settings
+            settings = load_settings()
             return render_template('settings.html', 
-                                current_frequency=new_frequency,
-                                current_tx_power=new_tx_power,
-                                current_gps_baudrate=new_gps_baudrate,
-                                status="Settings updated successfully")
+                                current_frequency=settings['frequency'],
+                                current_tx_power=settings['tx_power'],
+                                current_gps_baudrate=settings['gps_baudrate'],
+                                status='Settings updated successfully')
         except Exception as e:
             settings = load_settings()
             return render_template('settings.html', 
